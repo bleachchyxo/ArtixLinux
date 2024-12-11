@@ -21,3 +21,19 @@ You can check which `wine` version you installed by running;
 
     wine --version
 
+## Creating a wine prefix
+Create a directory where you want to store all the game files and related.
+
+        mkdir /mnt/storage/Game
+Now we will turn that directory into a `wine prefix` by using the following command;
+
+        WINEPREFIX="/mnt/storage/Game/" winecfg
+
+- Replace `/mnt/storage/Game/` to the actual path of the directory you just created
+
+Once the `winecfg` window appers the prefix is created and you can close the window.
+
+## Installing essential fonts using winetricks
+
+        WINEPREFIX="/mnt/storage/Game/" winetricks --force corefonts tahoma
+
