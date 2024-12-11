@@ -1,0 +1,3 @@
+- Making a user
+- suckless
+- xinitrc mod
