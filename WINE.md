@@ -33,7 +33,19 @@ Now we will turn that directory into a `wine prefix` by using the following comm
 
 Once the `winecfg` window appers the prefix is created and you can close the window.
 
-## Installing essential fonts using winetricks
+### Installing essential fonts using winetricks
 
         WINEPREFIX="/mnt/storage/Game/" winetricks --force corefonts tahoma
+### Installing DXVK
 
+Since we using [Artix Linux](https://artixlinux.org/) and we need to install from an [AUR](https://aur.archlinux.org/) repository we need to install a lightweight `AUR` package manager
+
+        sudo pacman -S trizen
+
+Using `trizen` we going to install a compiled verison of [DXVK](https://github.com/doitsujin/dxvk)
+        
+        trizen -S dxvk-bin
+
+To install `DXVK` in the `wine prefix` you need to locate the `setup_dxvk.sh` executable and run the following command;
+
+        WINEPREFIX="/mnt/storage/Game/" /usr/share/dxvk/setup_dxvk.sh install
