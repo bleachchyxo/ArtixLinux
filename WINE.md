@@ -49,3 +49,6 @@ Using `trizen` we going to install a compiled verison of [DXVK](https://github.c
 To install `DXVK` in the `wine prefix` you need to locate the `setup_dxvk.sh` executable and run the following command;
 
         WINEPREFIX="/mnt/storage/Game/" /usr/share/dxvk/setup_dxvk.sh install
+
+### Running windows applications
+
