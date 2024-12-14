@@ -40,3 +40,15 @@ Once you finished compiling those three folders want to exit from the `.config` 
 ### Installing the last packages
 
     pacman -S xorg xorg-xinit ttf-dejavu alsa-utils
+
+### Initiating suckless by default
+
+    vim ~/.bash_profile
+
+Paste the following script inside the file;
+
+    if [[ -z $DISPLAY ]] && [[ $(tty) = /dev/tty1 ]]; then
+        startx
+    fi
+
+Now reboot and enjoy!
