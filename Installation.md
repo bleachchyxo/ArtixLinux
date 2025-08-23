@@ -15,11 +15,19 @@ First locate your disk by typing `lsblk`
  
 We are going to start by deleting all the partitions on `sdx` using `fdisk` and creating new partitions. The first partition must be at least `+1G`, the second partition must be at least `+30G` and the last partition will be using the rest of the disk.
 
-To be able to use these partitions we are going to convert them into `ext4` by running the next command on every partition:
+To be able to use these partitions we are going to create a file system on each one. If your system runs on `BIOS/Legacy` you will need to use `ext4` on each partition;
 
     mkfs.ext4 /dev/sdx1
     mkfs.ext4 /dev/sdx2
     mkfs.ext4 /dev/sdx3
+
+But if your system runs on `UEFI` you basically do the same just make sure to use `FAT32` on the first partition;
+
+
+    mkfs.fat -F32 /dev/sdx1
+    mkfs.ext4 /dev/sdx2
+    mkfs.ext4 /dev/sdx3
+
 
 ## Mounting directories on the partitons
 
@@ -109,11 +117,21 @@ Now we are going to edit the already existing file `/etc/hosts`
     
 ## Installing grub
 
+For `BIOS/Legact` just install `grub`
+
     pacman -S grub
+
+For `UEFI` install the following;
+
+    pacman -S grub efibootmgr
     
-To install `grub` in our disk
+To install `grub` in our disk depends again on your firmware. For `BIOS`;
 
     grub-install --target=i386-pc /dev/sdx
+
+For `UEFI`;
+
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
 
 Finally we are going to create a `grub` config files
 
