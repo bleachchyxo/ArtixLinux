@@ -41,7 +41,7 @@ Once you finished compiling those three folders want to exit from the `.config` 
 
     pacman -S xorg xorg-xinit ttf-dejavu alsa-utils alsa-utils-runit
 
-## Making ALSA service start after rebooting
+### Making ALSA service start after rebooting
 
     ln -s /etc/runit/sv/alsa /etc/runit/runsdvdir/default/
 
