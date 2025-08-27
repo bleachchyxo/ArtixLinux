@@ -43,7 +43,7 @@ Once you finished compiling those three folders want to exit from the `.config` 
 
 ### Making ALSA service start after rebooting
 
-    ln -s /etc/runit/sv/alsa /etc/runit/runsdvdir/default/
+    ln -s /etc/runit/sv/alsa /etc/runit/runsvdir/default/
 
 ### Initiating suckless by default
 
