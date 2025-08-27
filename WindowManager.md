@@ -39,7 +39,11 @@ Once you finished compiling those three folders want to exit from the `.config` 
 
 ### Installing the last packages
 
-    pacman -S xorg xorg-xinit ttf-dejavu alsa-utils
+    pacman -S xorg xorg-xinit ttf-dejavu alsa-utils alsa-utils-runit
+
+## Making ALSA service start after rebooting
+
+    ln -s /etc/runit/sv/alsa /etc/runit/runsdvdir/default/
 
 ### Initiating suckless by default
 
