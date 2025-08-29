@@ -125,4 +125,36 @@ Download the following packages;
 
     sudo pacman -S xcompmgr picom
 
-Once you download these packages also download your GPU drivers, *noveau* drivers will cause errors. Download alpha patch
+Once you download these packages also download your GPU drivers, *noveau* drivers will cause errors.
+Install the `alpha` st patch and now we going to create a file on `.config/picom/picom.conf'
+
+
+    # OPACITY
+
+    inactive-opacity = 0.8;
+    frame-opacity = 0.7;
+
+    # ROUND CORNERS
+
+    corner-radius = 15
+
+    rounded-corners-exclude = [
+      "class_g = 'dwm'",
+      "class_g = 'dmenu'"
+    ];
+
+    # BLUR
+
+    blur:
+    {
+            method = "dual_kawase";
+            size = 10;
+            strenght = 3;
+    };
+
+    blur-background = true
+
+    blur-background-fixed = true
+
+    backend = "egl"
+    #backend = "glx"
