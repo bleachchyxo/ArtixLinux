@@ -56,3 +56,73 @@ Paste the following script inside the file;
     fi
 
 Now reboot and enjoy!
+
+# Rice your setup
+
+In order to do some tweaking to your setup we are going to let's start by your `.xinitrc` file;
+
+    #!/bin/bash
+
+    # Load profile if exists
+    [ -f ~/.xprofile ] && . ~/.xprofile
+
+    # Paths for battery and network
+    bat_path=/sys/class/power_supply/BAT0
+    wifi_paths=(/sys/class/net/wlp*/operstate /sys/class/net/wlan*/operstate)
+    eth_paths=(/sys/class/net/enp*/operstate /sys/class/net/eth*/operstate)
+
+    # Function to get the first available network interface that is up
+    get_network_status() {
+        for path in "${wifi_paths[@]}" "${eth_paths[@]}"; do
+            [ -e "$path" ] && [ "$(cat "$path")" == "up" ] && echo "Up" && return
+        done
+        echo "Down"
+    }
+
+    # Start your composite (xcompmgr, compton, picom)
+    picom --backend egl &
+
+
+    # Main loop
+    while true; do
+        # Volume status
+        vstat="$(amixer get Master | awk -F'[][]' 'END {print $2}')"
+
+        # Battery status (only if laptop with battery)
+        if [ -e "$bat_path/capacity" ]; then
+            bstat=$(<"$bat_path/capacity")
+            bat_status=$(<"$bat_path/status")
+            btitle="| BAT: "
+            per="% "
+            bend="|"
+            # Charging status
+            [ "$bat_status" == "Charging" ] && cstat="⚡ " || cstat=""
+        else
+            bstat="|"
+            bat_status=""
+            btitle=""
+            per=""
+            bend=""
+            cstat=""
+        fi
+
+        # Network status (Up/Down)
+        wstat=$(get_network_status)
+
+        # Display the status on the root window (bottom bar)
+        xsetroot -name " WEB: $wstat $btitle$bstat$per$cstat$bend VOL: $vstat | $(date '+%I:%M %p') "
+
+        # Sleep for 1 second before updating
+        sleep 1
+    done &
+
+    # Launch window manager
+    exec dwm
+
+## Installing suckless patches
+
+Download the following packages;
+
+    sudo pacman -S xcompmgr picom
+
+Once you download these packages also download your GPU drivers, *noveau* drivers will cause errors. Download alpha patch
