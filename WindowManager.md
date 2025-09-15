@@ -64,59 +64,50 @@ In order to do some tweaking to your setup we are going to let's start by your `
     #!/bin/bash
 
     # Load profile if exists
-    [ -f ~/.xprofile ] && . ~/.xprofile
+    [-f ~/.xprofile ] && . ~/.xprofile
 
-    # Paths for battery and network
-    bat_path=/sys/class/power_supply/BAT0
-    wifi_paths=(/sys/class/net/wlp*/operstate /sys/class/net/wlan*/operstate)
-    eth_paths=(/sys/class/net/enp*/operstate /sys/class/net/eth*/operstate)
+    # Start compositor
+    xcompmgr -C -t.25 -r2.2 -o.25 &
+    #picom --backend egl &
 
-    # Function to get the first available network interface that is up
-    get_network_status() {
-        for path in "${wifi_paths[@]}" "${eth_paths[@]}"; do
-            [ -e "$path" ] && [ "$(cat "$path")" == "up" ] && echo "Up" && return
-        done
-        echo "Down"
-    }
+    # Battery path (only set once)
+    bat_path=$(find /sys/class/power_supply/ -maxdepth 1 -name "BAT*" 2>/dev/null | head -n1)
 
-    # Start your composite (xcompmgr, compton, picom)
-    picom --backend egl &
+    i=0
 
-
-    # Main loop
     while true; do
-        # Volume status
-        vstat="$(amixer get Master | awk -F'[][]' 'END {print $2}')"
+        (( i % 5 == 0 )) && vol="VOL: $(amixer get Master | awk -F'[][]' '/%/ { print $2; exit }')"
 
-        # Battery status (only if laptop with battery)
-        if [ -e "$bat_path/capacity" ]; then
-            bstat=$(<"$bat_path/capacity")
-            bat_status=$(<"$bat_path/status")
-            btitle="| BAT: "
-            per="% "
-            bend="|"
-            # Charging status
-            [ "$bat_status" == "Charging" ] && cstat="⚡ " || cstat=""
-        else
-            bstat="|"
-            bat_status=""
-            btitle=""
-            per=""
-            bend=""
-            cstat=""
+        if (( i % 15 == 0 )); then
+            net="WEB: Down"
+            for iface in /sys/class/net/*; do
+                [ "$(cat "$iface/operstate" 2>/dev/null)" = "up" ] && net="WEB: Up" && break
+            done
         fi
 
-        # Network status (Up/Down)
-        wstat=$(get_network_status)
+        if (( i % 30 == 0 )) && [ -n "$bat_path" ]; then
+            read -r bstat < "$bat_path/capacity"
+            read -r bstatus < "$bat_path/status"
+            bicon=$([ "$bstatus" = "Charging" ] && echo "⚡")
+            bat="BAT: $bstat% $bicon"
+        elif [ -z "$bat_path" ]; then
+            bat=""
+        fi
 
-        # Display the status on the root window (bottom bar)
-        xsetroot -name " WEB: $wstat $btitle$bstat$per$cstat$bend VOL: $vstat | $(date '+%I:%M %p') "
+        time_str="$(date '+%-I:%M %p')"
 
-        # Sleep for 1 second before updating
+        # Build status string without extra pipes
+        status="$net"
+        [ -n "$bat" ] && status+=" | $bat"
+        status+=" | $vol | $time_str"
+
+        xsetroot -name " $status "
+
         sleep 1
+        ((i++))
     done &
 
-    # Launch window manager
+    trap 'kill 0' EXIT
     exec dwm
 
 ## Installing suckless patches
