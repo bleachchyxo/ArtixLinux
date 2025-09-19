@@ -39,7 +39,7 @@ Once you finished compiling those three folders want to exit from the `.config` 
 
 ### Installing the last packages
 
-    pacman -S xorg xorg-xinit ttf-dejavu alsa-utils alsa-utils-runit
+    pacman -S xorg xorg-xinit ttf-dejavu ttf-font-awesome alsa-utils alsa-utils-runit
 
 ### Making ALSA service start after rebooting
 
