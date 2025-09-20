@@ -1,147 +1,83 @@
-#!/bin/bash
+#!/bin/sh
 
-# Load user profile
+# Load user profile if it exists
 [ -f ~/.xprofile ] && . ~/.xprofile
 
-# Start compositor if not running
-pgrep -x xcompmgr > /dev/null || xcompmgr -C -t.25 -r2.2 -o.25 &
+# Start compositor if not already running
+pgrep -x xcompmgr >/dev/null || xcompmgr -C -t.25 -r2.2 -o.25 &
 
-# Detect battery path
-battery_path=$(find /sys/class/power_supply/ -maxdepth 1 -name "BAT*" 2>/dev/null | head -n1)
+# Find battery path (once)
+battery=$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' 2>/dev/null | head -n1)
 
-# Icon functions
-get_battery_icon() {
-    local level=$1
-    if   [ "$level" -ge 95 ]; then echo ""
-    elif [ "$level" -ge 75 ]; then echo ""
-    elif [ "$level" -ge 50 ]; then echo ""
-    elif [ "$level" -ge 25 ]; then echo ""
-    else                          echo ""
-    fi
+# Battery icon function
+battery_icon() {
+  case $1 in
+    9[5-9]|100) echo "";;
+    7[5-9]|8[0-9]|9[0-4]) echo "";;
+    5[0-9]|6[0-9]|7[0-4]) echo "";;
+    2[5-9]|3[0-9]|4[0-9]) echo "";;
+    *) echo "";;
+  esac
 }
 
-get_volume_icon() {
-    local volume=$1 muted=$2
-    if [ "$muted" = "off" ] || [ "$volume" -eq 0 ]; then
-        echo ""
-    elif [ "$volume" -le 50 ]; then
-        echo ""
-    else
-        echo ""
-    fi
+# Volume icon function
+volume_icon() {
+  [ "$2" = "off" ] || [ "$1" -eq 0 ] && echo "" && return
+  [ "$1" -le 50 ] && echo "" && return
+  echo ""
 }
 
-# Initialize status components
-last_volume=""
-last_network=""
-last_battery=""
-last_time=""
+# Initial values to track changes
 last_status=""
 
-# Function to update volume status
-update_volume() {
-    # Get Master volume and mute status robustly
-    read -r volume muted < <(
-        amixer get Master | awk -F'[][]' '
-            /Mono:/ || /Left:/ { gsub("%", "", $2); print $2, $6; exit }
-            /Playback.*%/ { gsub("%", "", $2); print $2, $4; exit }
-        '
-    )
-    if [ "$volume$muted" != "$last_volume" ]; then
-        volume_icon=$(get_volume_icon "$volume" "$muted")
-        if [ "$muted" = "off" ]; then
-            volume_status="$volume_icon Muted"
-        else
-            volume_status="$volume_icon ${volume}%"
-        fi
-        last_volume="$volume$muted"
-        return 0
-    fi
-    return 1
-}
-
-# Function to update network status
-update_network() {
-    local new_status=" Offline"
-    for iface_path in /sys/class/net/*; do
-        [ -f "$iface_path/operstate" ] || continue
-        local state=$(<"$iface_path/operstate")
-        if [ "$state" = "up" ]; then
-            iface=$(basename "$iface_path")
-            if [[ "$iface" == wl* ]]; then
-                new_status=" $iface"
-            else
-                new_status=" $iface"
-            fi
-            break
-        fi
-    done
-
-    if [ "$new_status" != "$last_network" ]; then
-        network_status="$new_status"
-        last_network="$new_status"
-        return 0
-    fi
-    return 1
-}
-
-# Function to update battery status
-update_battery() {
-    if [ -n "$battery_path" ]; then
-        local capacity status_raw
-        capacity=$(<"$battery_path/capacity")
-        status_raw=$(<"$battery_path/status")
-        battery_icon=$(get_battery_icon "$capacity")
-        [ "$status_raw" = "Charging" ] && battery_icon="⚡$battery_icon"
-        new_battery_status="$battery_icon ${capacity}%"
-
-        if [ "$new_battery_status" != "$last_battery" ]; then
-            battery_status="$new_battery_status"
-            last_battery="$new_battery_status"
-            return 0
-        fi
-    else
-        battery_status=""
-    fi
-    return 1
-}
-
-# Function to update time every new minute
-update_time() {
-    local current_minute=$(date +%M)
-    if [ "$current_minute" != "$last_time" ]; then
-        time_status=$(date '+%-I:%M %p')
-        last_time="$current_minute"
-        return 0
-    fi
-    return 1
-}
+# Trap to clean up background processes
+trap 'kill 0' EXIT
 
 # Main loop
-while true; do
-    changed=0
+while :; do
+  # Volume
+  set -- $(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
+  vol_icon=$(volume_icon "$1" "$2")
+  vol_status="$vol_icon $([ "$2" = "off" ] || [ "$1" -eq 0 ] && echo "Muted" || echo "$1%")"
 
-    update_volume && changed=1
-    update_network && changed=1
-    update_battery && changed=1
-    update_time && changed=1
+  # Network
+  net_status=" Offline"
+  for iface in /sys/class/net/*; do
+    [ -f "$iface/operstate" ] || continue
+    state=$(cat "$iface/operstate")
+    [ "$state" = "up" ] || continue
+    name=$(basename "$iface")
+    case "$name" in
+      wl*) net_status=" $name"; break;;
+      *) net_status=" $name"; break;;
+    esac
+  done
 
-    status_line=""
-    [ -n "$network_status" ] && status_line+="$network_status | "
-    [ -n "$battery_status" ] && status_line+="$battery_status | "
-    [ -n "$volume_status" ] && status_line+="$volume_status | "
-    status_line+="$time_status"
+  # Battery
+  battery_status=""
+  if [ "$battery" ]; then
+    cap=$(cat "$battery/capacity")
+    state=$(cat "$battery/status")
+    icon=$(battery_icon "$cap")
+    [ "$state" = "Charging" ] && icon="⚡$icon"
+    battery_status="$icon $cap%"
+  fi
 
-    if [ "$status_line" != "$last_status" ]; then
-        xsetroot -name " $status_line "
-        last_status="$status_line"
-    fi
+  # Time (only update on new minute)
+  minute=$(date +%M)
+  if [ "$minute" != "$last_minute" ]; then
+    time_status=$(date '+%-I:%M %p')
+    last_minute="$minute"
+  fi
 
-    sleep 1
+  # Combine full status line
+  status=" $net_status${battery_status:+ | $battery_status} | $vol_status | $time_status "
+
+  # Only update if changed
+  [ "$status" != "$last_status" ] && xsetroot -name "$status" && last_status="$status"
+
+  sleep 1
 done &
-
-# Cleanup on exit
-trap 'kill 0' EXIT
 
 # Start dwm
 exec dwm
