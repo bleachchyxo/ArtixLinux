@@ -1,21 +1,15 @@
 #!/bin/bash
 
-# Load profile if exists
+# Load user profile
 [ -f ~/.xprofile ] && . ~/.xprofile
 
-# Start compositor (only if not running)
+# Start compositor if not running
 pgrep -x xcompmgr > /dev/null || xcompmgr -C -t.25 -r2.2 -o.25 &
 
-# Battery detection (if exists)
-bat_path=$(find /sys/class/power_supply/ -maxdepth 1 -name "BAT*" 2>/dev/null | head -n1)
+# Detect battery path
+battery_path=$(find /sys/class/power_supply/ -maxdepth 1 -name "BAT*" 2>/dev/null | head -n1)
 
-# Initial values
-last_vol=""
-last_net=""
-last_bat=""
-last_min=""
-
-# Get battery icon based on percentage
+# Icon functions
 get_battery_icon() {
     local level=$1
     if   [ "$level" -ge 95 ]; then echo ""
@@ -26,88 +20,120 @@ get_battery_icon() {
     fi
 }
 
-# Get volume icon
-get_vol_icon() {
-    local vol=$1 muted=$2
-    if [ "$muted" = "off" ] || [ "$vol" -eq 0 ]; then
+get_volume_icon() {
+    local volume=$1 muted=$2
+    if [ "$muted" = "off" ] || [ "$volume" -eq 0 ]; then
         echo ""
-    elif [ "$vol" -le 50 ]; then
+    elif [ "$volume" -le 50 ]; then
         echo ""
     else
         echo ""
     fi
 }
 
-# Main loop
-while :; do
-    status=""
+# Initialize status components
+last_volume=""
+last_network=""
+last_battery=""
+last_time=""
+last_status=""
 
-    ## TIME: Update only once per minute
-    now_min=$(date +%M)
-    if [ "$now_min" != "$last_min" ]; then
-        time_str=$(date '+%-I:%M %p')
-        last_min="$now_min"
-    fi
-
-    ## VOLUME: Check only if changed
-    read -r vol muted < <(
-        amixer get Master | awk -F'[][]' '/%/ { vol=$2; mute=$4; gsub("%","",vol); print vol, mute; exit }'
+# Function to update volume status
+update_volume() {
+    read -r volume muted < <(
+        amixer get Master | awk -F'[][]' '/%/ { gsub("%", "", $2); print $2, $4; exit }'
     )
-    if [ "$vol$muted" != "$last_vol" ]; then
-        vol_icon=$(get_vol_icon "$vol" "$muted")
-        vol_str="$vol_icon ${vol}%"
-        last_vol="$vol$muted"
+    if [ "$volume$muted" != "$last_volume" ]; then
+        volume_icon=$(get_volume_icon "$volume" "$muted")
+        volume_status="$volume_icon ${volume}%"
+        last_volume="$volume$muted"
+        return 0
     fi
+    return 1
+}
 
-    ## NETWORK: Check only if state changes
-    net_status=" Offline"
-    for iface in /sys/class/net/*; do
-        [ -f "$iface/operstate" ] || continue
-        state=$(<"$iface/operstate")
+# Function to update network status
+update_network() {
+    local new_status=" Offline"
+    for iface_path in /sys/class/net/*; do
+        [ -f "$iface_path/operstate" ] || continue
+        local state=$(<"$iface_path/operstate")
         if [ "$state" = "up" ]; then
-            if [[ "$iface" == *"wl"* ]]; then
-                icon=""
+            iface=$(basename "$iface_path")
+            if [[ "$iface" == wl* ]]; then
+                new_status=" $iface"
             else
-                icon=""
+                new_status=" $iface"
             fi
-            name=${iface##*/}
-            net_status="$icon $name"
             break
         fi
     done
-    if [ "$net_status" != "$last_net" ]; then
-        net_str="$net_status"
-        last_net="$net_status"
-    fi
 
-    ## BATTERY: Only if exists and value changes
-    if [ -n "$bat_path" ]; then
-        read -r capacity < "$bat_path/capacity"
-        read -r status_raw < "$bat_path/status"
-        bicon=$(get_battery_icon "$capacity")
-        [ "$status_raw" = "Charging" ] && bicon="⚡$bicon"
-        bat_str="$bicon ${capacity}%"
-        if [ "$bat_str" != "$last_bat" ]; then
-            last_bat="$bat_str"
+    if [ "$new_status" != "$last_network" ]; then
+        network_status="$new_status"
+        last_network="$new_status"
+        return 0
+    fi
+    return 1
+}
+
+# Function to update battery status
+update_battery() {
+    if [ -n "$battery_path" ]; then
+        local capacity status_raw
+        capacity=$(<"$battery_path/capacity")
+        status_raw=$(<"$battery_path/status")
+        battery_icon=$(get_battery_icon "$capacity")
+        [ "$status_raw" = "Charging" ] && battery_icon="⚡$battery_icon"
+        new_battery_status="$battery_icon ${capacity}%"
+
+        if [ "$new_battery_status" != "$last_battery" ]; then
+            battery_status="$new_battery_status"
+            last_battery="$new_battery_status"
+            return 0
         fi
     else
-        bat_str=""
+        battery_status=""
+    fi
+    return 1
+}
+
+# Function to update time every new minute
+update_time() {
+    local current_minute=$(date +%M)
+    if [ "$current_minute" != "$last_time" ]; then
+        time_status=$(date '+%-I:%M %p')
+        last_time="$current_minute"
+        return 0
+    fi
+    return 1
+}
+
+# Main loop
+while true; do
+    changed=0
+
+    update_volume && changed=1
+    update_network && changed=1
+    update_battery && changed=1
+    update_time && changed=1
+
+    status_line=""
+    [ -n "$network_status" ] && status_line+="$network_status | "
+    [ -n "$battery_status" ] && status_line+="$battery_status | "
+    [ -n "$volume_status" ] && status_line+="$volume_status | "
+    status_line+="$time_status"
+
+    if [ "$status_line" != "$last_status" ]; then
+        xsetroot -name " $status_line "
+        last_status="$status_line"
     fi
 
-    ## Assemble final status line
-    status=""
-    [ -n "$net_str" ] && status+="$net_str | "
-    [ -n "$bat_str" ] && status+="$bat_str | "
-    [ -n "$vol_str" ] && status+="$vol_str | "
-    status+="$time_str"
-
-    xsetroot -name " $status "
-
-    sleep 5
+    sleep 1
 done &
 
-# Cleanup children on exit
+# Cleanup on exit
 trap 'kill 0' EXIT
 
-# Start DWM
+# Start dwm
 exec dwm
