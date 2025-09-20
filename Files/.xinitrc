@@ -40,12 +40,20 @@ last_status=""
 
 # Function to update volume status
 update_volume() {
+    # Get Master volume and mute status robustly
     read -r volume muted < <(
-        amixer get Master | awk -F'[][]' '/%/ { gsub("%", "", $2); print $2, $4; exit }'
+        amixer get Master | awk -F'[][]' '
+            /Mono:/ || /Left:/ { gsub("%", "", $2); print $2, $6; exit }
+            /Playback.*%/ { gsub("%", "", $2); print $2, $4; exit }
+        '
     )
     if [ "$volume$muted" != "$last_volume" ]; then
         volume_icon=$(get_volume_icon "$volume" "$muted")
-        volume_status="$volume_icon ${volume}%"
+        if [ "$muted" = "off" ]; then
+            volume_status="$volume_icon Muted"
+        else
+            volume_status="$volume_icon ${volume}%"
+        fi
         last_volume="$volume$muted"
         return 0
     fi
