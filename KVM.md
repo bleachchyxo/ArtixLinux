@@ -1,4 +1,9 @@
-To install we must start by downloading the following packages;
+To install we must start by checking if your machine really support VMs
+
+    lscpu | grep Virtualization
+    grep -E 'vmx|svm' /proc/cpuinfo
 
 
-    qemu libvirt dnsmasq virt-manager
+
+
+    qemu libvirt libvirt-runit dnsmasq virt-manager
