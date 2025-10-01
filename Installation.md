@@ -93,9 +93,9 @@ You are going to edit the file `/etc/locale.gen` which lists all the different a
 
     locale-gen
 
-Next we are going to create a file `/etc/locale.conf` and write on it
+Set system language:
 
-    LANG=en_US.UTF-8
+    echo "LANG=en_US.UTF-8" > /etc/locale.conf
 
 ## Installing networkmanager
 
@@ -105,15 +105,14 @@ Now we are going to set the service to run by default in order to autostart
 
     ln -s /etc/runit/sv/NetworkManager/ /etc/runit/runsvdir/current
 
-once you set the `networkmanager` create the file `/etc/NetworkManager/conf.d/00-macrandomize.conf` with the following content;
+Create `/etc/NetworkManager/conf.d/00-macrandomize.conf`
 
     [device]
     wifi.scan-rand-mac-address=yes
 
     [connection]
-    wifi.cloned-mac-address=stable  # Use stable MAC for each SSID
-    ethernet.cloned-mac-address=stable  # Optional: for Ethernet connections
-
+    wifi.cloned-mac-address=stable
+    ethernet.cloned-mac-address=stable
     
 ## Creating some system files
 
