@@ -104,6 +104,16 @@ Next we are going to create a file `/etc/locale.conf` and write on it
 Now we are going to set the service to run by default in order to autostart
 
     ln -s /etc/runit/sv/NetworkManager/ /etc/runit/runsvdir/current
+
+once you set the `networkmanager` create the file `/etc/NetworkManager/conf.d/00-macrandomize.conf` with the following content;
+
+    [device]
+    wifi.scan-rand-mac-address=yes
+
+    [connection]
+    wifi.cloned-mac-address=stable  # Use stable MAC for each SSID
+    ethernet.cloned-mac-address=stable  # Optional: for Ethernet connections
+
     
 ## Creating some system files
 
