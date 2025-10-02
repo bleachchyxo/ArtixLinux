@@ -39,11 +39,27 @@ Once you finished compiling those three folders want to exit from the `.config` 
 
 ### Installing the last packages
 
-    pacman -S xorg xorg-xinit ttf-dejavu ttf-font-awesome alsa-utils alsa-utils-runit
+    pacman -S xorg xorg-xinit ttf-dejavu ttf-font-awesome alsa-utils alsa-utils-runit beep
 
 ### Making ALSA service start after rebooting
 
     ln -s /etc/runit/sv/alsa /etc/runit/runsvdir/default/
+
+### Load the PC speaker kernel module:
+
+    modprobe pcspkr
+
+To load at boot, add to `/etc/modules-load.d/pcspkr.conf`:
+
+    pcspkr
+    
+Set permissions to allow your user to use `beep`:
+
+    chmod u+s /usr/bin/beep
+    
+Make sure your user is in the audio group:
+
+    usermod -aG audio <username>
 
 ### Initiating suckless by default
 
