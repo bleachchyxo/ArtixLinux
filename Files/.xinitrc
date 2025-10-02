@@ -79,5 +79,6 @@ while :; do
   sleep 1
 done &
 
-# Start dwm
+# Start dwm and beep
+beep -f 1046 -l 40 -n -d 30 -f 1318 -l 400
 exec dwm
