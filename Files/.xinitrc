@@ -29,6 +29,7 @@ volume_icon() {
 
 # Initial values to track changes
 last_status=""
+last_battery_status=""
 
 # Trap to clean up background processes
 trap 'kill 0' EXIT
@@ -61,6 +62,13 @@ while :; do
     icon=$(battery_icon "$cap")
     [ "$state" = "Charging" ] && icon="⚡$icon"
     battery_status="$icon $cap%"
+
+    # Low battery warning
+    if [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_status" ]; then
+      beep -f 550 -l 200 -n -d 50 -f 440 -l 300
+      notify-send "Low Battery" "Battery level is at $cap%. Please charge your device."
+      last_battery_status="$battery_status"
+    fi
   fi
 
   # Time (only update on new minute)
@@ -79,6 +87,5 @@ while :; do
   sleep 1
 done &
 
-# Start dwm and beep
-beep -f 1046 -l 40 -n -d 30 -f 1318 -l 400
-exec dwm
+# Startup beep and start dwm
+beep -f 1046 -l 40 -n -d 30 -f 1318 -l 400 & exec dwm
