@@ -1,15 +1,10 @@
 #!/bin/sh
 
-# Load user profile if it exists
 [ -f ~/.xprofile ] && . ~/.xprofile
 
-# Start compositor if not already running
 pgrep -x xcompmgr >/dev/null || xcompmgr -C -t.25 -r2.2 -o.25 &
 
-# Find battery path (once)
-battery=$(find /sys/class/power_supply -maxdepth 1 -name 'BAT*' 2>/dev/null | head -n1)
-
-# Battery icon function
+# Icons
 battery_icon() {
   case $1 in
     9[5-9]|100) echo "";;
@@ -20,72 +15,103 @@ battery_icon() {
   esac
 }
 
-# Volume icon function
 volume_icon() {
   [ "$2" = "off" ] || [ "$1" -eq 0 ] && echo "" && return
   [ "$1" -le 50 ] && echo "" && return
   echo ""
 }
 
-# Initial values to track changes
-last_status=""
-last_battery_status=""
-
-# Trap to clean up background processes
 trap 'kill 0' EXIT
 
-# Main loop
+# State variables
+last_time=""
+last_volume=""
+last_network=""
+last_battery=""
+last_battery_warn=""
+last_minute=""
+last_net_iface=""
+
+# Interval tracking
+last_battery_check=0
+last_network_check=0
+
 while :; do
-  # Volume
-  set -- $(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
-  vol_icon=$(volume_icon "$1" "$2")
-  vol_status="$vol_icon $([ "$2" = "off" ] || [ "$1" -eq 0 ] && echo "Muted" || echo "$1%")"
+  changed=0
+  now=$(date +%s)
 
-  # Network
-  net_status=" Offline"
-  for iface in /sys/class/net/*; do
-    [ -f "$iface/operstate" ] || continue
-    state=$(cat "$iface/operstate")
-    [ "$state" = "up" ] || continue
-    name=$(basename "$iface")
-    case "$name" in
-      wl*) net_status=" $name"; break;;
-      *) net_status=" $name"; break;;
-    esac
-  done
-
-  # Battery
-  battery_status=""
-  if [ "$battery" ]; then
-    cap=$(cat "$battery/capacity")
-    state=$(cat "$battery/status")
-    icon=$(battery_icon "$cap")
-    [ "$state" = "Charging" ] && icon="⚡$icon"
-    battery_status="$icon $cap%"
-
-    # Low battery warning
-    if [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_status" ]; then
-      beep -f 550 -l 200 -n -d 50 -f 440 -l 300
-      notify-send "Low Battery" "Battery level is at $cap%. Please charge your device."
-      last_battery_status="$battery_status"
-    fi
-  fi
-
-  # Time (only update on new minute)
-  minute=$(date +%M)
-  if [ "$minute" != "$last_minute" ]; then
+  #### TIME MODULE ####
+  current_minute=$(date +%M)
+  if [ "$current_minute" != "$last_minute" ]; then
     time_status=$(date '+%-I:%M %p')
-    last_minute="$minute"
+    last_minute="$current_minute"
+    changed=1
   fi
 
-  # Combine full status line
-  status=" $net_status${battery_status:+ | $battery_status} | $vol_status | $time_status "
+  #### VOLUME MODULE ####
+  set -- $(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
+  volume_icon=$(volume_icon "$1" "$2")
+  volume_status="$volume_icon $([ "$2" = "off" ] || [ "$1" -eq 0 ] && echo "Muted" || echo "$1%")"
 
-  # Only update if changed
-  [ "$status" != "$last_status" ] && xsetroot -name "$status" && last_status="$status"
+  [ "$volume_status" != "$last_volume" ] && {
+    last_volume="$volume_status"
+    changed=1
+  }
+
+  #### NETWORK MODULE ####
+  if [ $((now - last_network_check)) -ge 10 ]; then
+    net_status=" Offline"
+    for iface in /sys/class/net/*; do
+      [ -f "$iface/operstate" ] || continue
+      state=$(cat "$iface/operstate")
+      [ "$state" = "up" ] || continue
+      iface_name=$(basename "$iface")
+      net_status=" $iface_name"
+      case "$iface_name" in
+        wl*) net_status=" $iface_name"; break ;;
+        *)   net_status=" $iface_name"; break ;;
+      esac
+    done
+    [ "$net_status" != "$last_network" ] && {
+      last_network="$net_status"
+      changed=1
+    }
+    last_network_check=$now
+  fi
+
+  #### BATTERY MODULE ####
+  if [ $((now - last_battery_check)) -ge 15 ]; then
+    battery_status=""
+    for battery_path in /sys/class/power_supply/BAT*; do
+      [ -d "$battery_path" ] || continue
+      capacity=$(cat "$battery_path/capacity")
+      status=$(cat "$battery_path/status")
+      icon=$(battery_icon "$capacity")
+      [ "$status" = "Charging" ] && icon="⚡$icon"
+      battery_status="$icon $capacity%"
+
+      if [ "$capacity" -le 30 ] && [ "$battery_status" != "$last_battery_warn" ]; then
+        beep -f 550 -l 200 -n -d 50 -f 440 -l 300
+        notify-send "Low Battery" "Battery at $capacity%. Please charge."
+        last_battery_warn="$battery_status"
+      fi
+      break
+    done
+    [ "$battery_status" != "$last_battery" ] && {
+      last_battery="$battery_status"
+      changed=1
+    }
+    last_battery_check=$now
+  fi
+
+  #### COMBINE AND DISPLAY STATUS ####
+  status=" $last_network${last_battery:+ | $last_battery} | $last_volume | $time_status "
+
+  [ "$changed" -eq 1 ] && xsetroot -name "$status"
 
   sleep 1
 done &
 
-# Startup beep and start dwm
-beep -f 1046 -l 40 -n -d 30 -f 1318 -l 400 & exec dwm
+# Startup sound and launch DWM
+beep -f 1046 -l 40 -n -d 30 -f 1318 -l 400 &
+exec dwm
