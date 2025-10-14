@@ -23,24 +23,15 @@ volume_icon() {
   echo ""
 }
 
-last_time=""
+last_minute=""
 last_volume=""
 last_network=""
 last_battery=""
 last_battery_warn=""
-last_minute=""
-
-# Check if we have a sound card
-has_audio=0
-for card in /proc/asound/card[0-9]*; do
-  [ -d "$card" ] && has_audio=1 && break
-done
 
 while :; do
   changed=0
-  now=$(date +%s)
 
-  #### TIME ####
   minute=$(date +%M)
   if [ "$minute" != "$last_minute" ]; then
     time_status=$(date '+%-I:%M %p')
@@ -48,50 +39,41 @@ while :; do
     changed=1
   fi
 
-  #### VOLUME (only if sound card present) ####
-  if [ "$has_audio" -eq 1 ]; then
-    read volume mute <<EOF
-$(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
-EOF
+  # VOLUME: Only if amixer succeeds
+  if amixer get Master >/dev/null 2>&1; then
+    set -- $(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
+    icon=$(volume_icon "$1" "$2")
+    volume_status="$icon"
+    [ "$2" = "off" ] && volume_status="$icon Muted"
+    [ "$1" -eq 0 ] && [ "$2" != "off" ] && volume_status="$icon 0%"
+    [ "$1" -gt 0 ] && [ "$2" != "off" ] && volume_status="$icon $1%"
 
-    icon=$(volume_icon "$volume" "$mute")
-
-    if [ "$mute" = "off" ]; then
-      volume_status="$icon Muted"
-    elif [ "$volume" -eq 0 ]; then
-      volume_status="$icon 0%"
-    else
-      volume_status="$icon $volume%"
-    fi
-
-    if [ "$volume_status" != "$last_volume" ]; then
+    [ "$volume_status" != "$last_volume" ] && {
       last_volume="$volume_status"
       changed=1
-    fi
+    }
   else
     volume_status=""
     last_volume=""
   fi
 
-  #### NETWORK ####
+  # NETWORK
   network_status=" Offline"
   for iface in /sys/class/net/*; do
     [ -f "$iface/operstate" ] || continue
-    state=$(cat "$iface/operstate")
-    [ "$state" = "up" ] || continue
+    [ "$(cat "$iface/operstate")" = "up" ] || continue
     name=$(basename "$iface")
     case "$name" in
       wl*) network_status=" $name"; break ;;
       *)   network_status=" $name"; break ;;
     esac
   done
-
-  if [ "$network_status" != "$last_network" ]; then
+  [ "$network_status" != "$last_network" ] && {
     last_network="$network_status"
     changed=1
-  fi
+  }
 
-  #### BATTERY ####
+  # BATTERY
   battery_status=""
   for bat in /sys/class/power_supply/BAT*; do
     [ -d "$bat" ] || continue
@@ -100,25 +82,21 @@ EOF
     icon=$(battery_icon "$cap")
     [ "$stat" = "Charging" ] && icon="⚡$icon"
     battery_status="$icon $cap%"
-
-    if [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_warn" ]; then
+    [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_warn" ] && {
       notify-send "Low Battery" "Battery at $cap%. Please charge."
       last_battery_warn="$battery_status"
-    fi
+    }
     break
   done
-
-  if [ "$battery_status" != "$last_battery" ]; then
+  [ "$battery_status" != "$last_battery" ] && {
     last_battery="$battery_status"
     changed=1
-  fi
+  }
 
-  #### SET STATUS LINE ####
+  # BUILD STATUS LINE
   status=" $last_network"
-
   [ -n "$last_battery" ] && status="$status | $last_battery"
   [ -n "$last_volume" ] && status="$status | $last_volume"
-
   status="$status | $time_status "
 
   [ "$changed" -eq 1 ] && xsetroot -name "$status"
