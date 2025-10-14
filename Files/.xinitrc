@@ -32,6 +32,7 @@ last_battery_warn=""
 while :; do
   changed=0
 
+  # Time: update once per minute
   minute=$(date +%M)
   if [ "$minute" != "$last_minute" ]; then
     time_status=$(date '+%-I:%M %p')
@@ -39,8 +40,8 @@ while :; do
     changed=1
   fi
 
-  # VOLUME: Only if amixer succeeds
-  if amixer get Master >/dev/null 2>&1; then
+  # Volume: show only if 'amixer get Master' outputs a volume percentage
+  if amixer get Master | grep -q '%'; then
     set -- $(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
     icon=$(volume_icon "$1" "$2")
     volume_status="$icon"
@@ -48,16 +49,16 @@ while :; do
     [ "$1" -eq 0 ] && [ "$2" != "off" ] && volume_status="$icon 0%"
     [ "$1" -gt 0 ] && [ "$2" != "off" ] && volume_status="$icon $1%"
 
-    [ "$volume_status" != "$last_volume" ] && {
+    if [ "$volume_status" != "$last_volume" ]; then
       last_volume="$volume_status"
       changed=1
-    }
+    fi
   else
     volume_status=""
     last_volume=""
   fi
 
-  # NETWORK
+  # Network: update only on change
   network_status=" Offline"
   for iface in /sys/class/net/*; do
     [ -f "$iface/operstate" ] || continue
@@ -68,12 +69,12 @@ while :; do
       *)   network_status=" $name"; break ;;
     esac
   done
-  [ "$network_status" != "$last_network" ] && {
+  if [ "$network_status" != "$last_network" ]; then
     last_network="$network_status"
     changed=1
-  }
+  fi
 
-  # BATTERY
+  # Battery: update only on change, send notification on low battery once per warning
   battery_status=""
   for bat in /sys/class/power_supply/BAT*; do
     [ -d "$bat" ] || continue
@@ -82,18 +83,18 @@ while :; do
     icon=$(battery_icon "$cap")
     [ "$stat" = "Charging" ] && icon="⚡$icon"
     battery_status="$icon $cap%"
-    [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_warn" ] && {
+    if [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_warn" ]; then
       notify-send "Low Battery" "Battery at $cap%. Please charge."
       last_battery_warn="$battery_status"
-    }
+    fi
     break
   done
-  [ "$battery_status" != "$last_battery" ] && {
+  if [ "$battery_status" != "$last_battery" ]; then
     last_battery="$battery_status"
     changed=1
-  }
+  fi
 
-  # BUILD STATUS LINE
+  # Build status line with only present info
   status=" $last_network"
   [ -n "$last_battery" ] && status="$status | $last_battery"
   [ -n "$last_volume" ] && status="$status | $last_volume"
