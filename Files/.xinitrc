@@ -6,12 +6,6 @@ pgrep -x xcompmgr >/dev/null || xcompmgr -C -t.25 -r2.2 -o.25 &
 
 trap 'kill 0' EXIT
 
-# === One-time checks ===
-
-# Volume support check
-volume_enabled=1
-amixer >/dev/null 2>&1 || volume_enabled=0
-
 battery_icon() {
   case $1 in
     9[5-9]|100) echo "";;
@@ -36,6 +30,12 @@ last_battery=""
 last_battery_warn=""
 last_minute=""
 
+# Check if we have a sound card
+has_audio=0
+for card in /proc/asound/card[0-9]*; do
+  [ -d "$card" ] && has_audio=1 && break
+done
+
 while :; do
   changed=0
   now=$(date +%s)
@@ -48,9 +48,12 @@ while :; do
     changed=1
   fi
 
-  #### VOLUME ####
-  if [ "$volume_enabled" -eq 1 ]; then
-    read volume mute <<< $(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
+  #### VOLUME (only if sound card present) ####
+  if [ "$has_audio" -eq 1 ]; then
+    read volume mute <<EOF
+$(amixer get Master | awk -F'[][]' '/Mono:/||/Left:/ {gsub("%",""); print $2, $6; exit} /Playback.*%/ {gsub("%",""); print $2, $4; exit}')
+EOF
+
     icon=$(volume_icon "$volume" "$mute")
 
     if [ "$mute" = "off" ]; then
@@ -61,16 +64,13 @@ while :; do
       volume_status="$icon $volume%"
     fi
 
-    [ "$volume_status" != "$last_volume" ] && {
+    if [ "$volume_status" != "$last_volume" ]; then
       last_volume="$volume_status"
       changed=1
-    }
+    fi
   else
     volume_status=""
-    [ "$last_volume" != "" ] && {
-      last_volume=""
-      changed=1
-    }
+    last_volume=""
   fi
 
   #### NETWORK ####
@@ -86,10 +86,10 @@ while :; do
     esac
   done
 
-  [ "$network_status" != "$last_network" ] && {
+  if [ "$network_status" != "$last_network" ]; then
     last_network="$network_status"
     changed=1
-  }
+  fi
 
   #### BATTERY ####
   battery_status=""
@@ -102,26 +102,28 @@ while :; do
     battery_status="$icon $cap%"
 
     if [ "$cap" -le 30 ] && [ "$battery_status" != "$last_battery_warn" ]; then
-      beep -f 550 -l 200 -n -d 50 -f 440 -l 300
       notify-send "Low Battery" "Battery at $cap%. Please charge."
       last_battery_warn="$battery_status"
     fi
     break
   done
 
-  [ "$battery_status" != "$last_battery" ] && {
+  if [ "$battery_status" != "$last_battery" ]; then
     last_battery="$battery_status"
     changed=1
-  }
+  fi
 
-  #### SET STATUS ####
-  status=" $last_network${last_battery:+ | $last_battery}${last_volume:+ | $last_volume} | $time_status "
+  #### SET STATUS LINE ####
+  status=" $last_network"
+
+  [ -n "$last_battery" ] && status="$status | $last_battery"
+  [ -n "$last_volume" ] && status="$status | $last_volume"
+
+  status="$status | $time_status "
 
   [ "$changed" -eq 1 ] && xsetroot -name "$status"
 
   sleep 1
 done &
 
-# Startup sound and DWM
-beep -f 1046 -l 40 -n -d 30 -f 1318 -l 400 &
 exec dwm
