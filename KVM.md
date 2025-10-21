@@ -9,8 +9,7 @@ Install the following packages;
 
 Give your user permissions;
 
-    sudo usermod -aG libvirt,kvm <your_username>
-
+    sudo usermod -aG libvirt,kvm $USER
 set the services by default 
 
     sudo ln -s /etc/runit/sv/libvirtd /etc/runit/runsvdir/default
