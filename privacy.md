@@ -41,3 +41,28 @@ content;
 
     # Finally, start NetworkManager
     exec NetworkManager -n > /dev/null 2>&1
+
+another attempt
+
+    #!/bin/sh
+    rm -f /var/lib/NetworkManager/secret_key
+    rm -f /var/lib/NetworkManager/*lease*
+    sv check dbus >/dev/null || exit 1
+    # Create required dirs
+    [ ! -d /etc/NetworkManager/dispatcher.d ] && mkdir -m0755 -p /etc/NetworkManager/dispatcher.d
+    [ ! -d /etc/NetworkManager/VPN ] && mkdir -m0755 -p /etc/NetworkManager/VPN
+    [ ! -d /etc/NetworkManager/system-connections ] && mkdir -m0755 -p /etc/NetworkManager/system-connections
+    [ ! -d /var/lib/NetworkManager ] && mkdir -m0700 -p /var/lib/NetworkManager
+    exec NetworkManager -n > /dev/null 2>&1
+
+`/etc/NetworkManager/NetworkManager.conf` content 
+
+    # Configuration file for NetworkManager.
+    # See "man 5 NetworkManager.conf" for details.
+
+    [device]
+    wifi.scan-rand-mac-address=yes
+
+    [connection]
+    ethernet.cloned-mac-address=random
+    wifi.cloned-mac-address=random
