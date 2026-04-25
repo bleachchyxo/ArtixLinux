@@ -66,3 +66,52 @@ another attempt
     [connection]
     ethernet.cloned-mac-address=random
     wifi.cloned-mac-address=random
+
+another attempt
+
+`/etc/NetworkManager/conf.d/00-macrandomize.conf` content;
+
+    [device]
+    wifi.scan-rand-mac-address=yes
+    [connection]
+    wifi.cloned-mac-address=stable
+    ethernet.cloned-mac-address=stable
+
+`/etc/runit/sv/NetworkManager/run` content;
+
+    #!/bin/sh
+    rm -f /var/lib/NetworkManager/secret_key
+    for i in /sys/class/net/*; do
+    iface=￼i”)
+    [ “$iface” = “lo” ] && continue
+    ip link set “$iface” down 2>/dev/null
+    done
+    exec NetworkManager -n
+
+and last attempt
+
+    [device]
+    wifi.scan-rand-mac-address=yes
+
+    [connection]
+    wifi.cloned-mac-address=stable
+    ethernet.cloned-mac-address=stable
+
+and 
+
+    #!/bin/sh
+
+    # Generate new identity per boot
+    rm -f /var/lib/NetworkManager/secret_key
+
+    # Prevent any early network activity
+    for i in /sys/class/net/*; do
+        iface=$(basename "$i")
+        [ "$iface" = "lo" ] && continue
+        ip link set "$iface" down 2>/dev/null
+    done
+
+    # Start NetworkManager
+    exec NetworkManager -n
+
+
