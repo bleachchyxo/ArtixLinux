@@ -124,6 +124,7 @@ final version
     [connection]
     wifi.cloned-mac-address=stable
     ethernet.cloned-mac-address=stable
+    ipv6.method=disabled
 
 `/etc/runit/sv/NetworkManager/run` content;
 
