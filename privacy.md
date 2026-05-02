@@ -152,6 +152,10 @@ final version
     # Start NetworkManager
     exec NetworkManager -n > /dev/null 2>&1
 
+`/etc/udev/rules.d/10-net-down.rules` content;
+
+    ACTION=="add", SUBSYSTEM=="net", KERNEL!="lo", RUN+="/usr/bin/ip link set %k down"
+
 Original 
 
     cat /etc/runit/sv/NetworkManager/run
