@@ -47,6 +47,15 @@ Original
     [ ! -d /var/lib/NetworkManager ] && mkdir -m0700 -p /var/lib/NetworkManager
     exec NetworkManager -n > /dev/null 2>&1
 
+`/etc/NetworkManager/conf.d/00-macrandomize.conf` content;
+
+    [device]
+    wifi.scan-rand-mac-address=yes
+
+    [connection]
+    wifi.cloned-mac-address=stable
+    ethernet.cloned-mac-address=stable
+    ipv6.method=disabled
 
 test;
 
@@ -76,6 +85,47 @@ test;
 
     # Start NetworkManager
     exec NetworkManager -n > /dev/null 2>&1
+lol
+
+`/etc/NetworkManager/conf.d/00-macrandomize.conf` content;
+
+    [device]
+    wifi.scan-rand-mac-address=yes
+
+    [connection]
+    wifi.cloned-mac-address=stable
+    ethernet.cloned-mac-address=stable
+    ipv6.method=disabled
+
+`/etc/runit/sv/NetworkManager/run` content;
+
+    #!/bin/sh
+
+    # Ensure dbus is ready
+    sv check dbus >/dev/null || exit 1
+
+    # Reset NetworkManager identity (per-boot MAC seed)
+    rm -f /var/lib/NetworkManager/secret_key
+
+    # Create required dirs (unchanged)
+    [ ! -d /etc/NetworkManager/dispatcher.d ] && mkdir -m0755 -p /etc/NetworkManager/dispatcher.d
+    [ ! -d /etc/NetworkManager/VPN ] && mkdir -m0755 -p /etc/NetworkManager/VPN
+    [ ! -d /etc/NetworkManager/system-connections ] && mkdir -m0755 -p /etc/NetworkManager/system-connections
+    [ ! -d /var/lib/NetworkManager ] && mkdir -m0700 -p /var/lib/NetworkManager
+
+    #unblock wi-fi
+    rfkill unblock wifi 2>/dev/null
+
+    #bring interfaces up
+    for i in /sys/class/net/*; do
+            iface=$(basename "$i")
+            [ "$iface" = "lo" ] && continue
+            ip link set "$iface" up 2>/dev/null
+    done
+
+    # Start NetworkManager
+    exec NetworkManager -n > /dev/null 2>&1
+
 
 edit `/etc/default/grub` and change from 
 
