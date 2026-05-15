@@ -55,3 +55,4 @@ To install `DXVK` in the `wine prefix` you need to locate the `setup_dxvk.sh` ex
 
 ### Running windows applications
 
+    WINEPREFIX="/path/" wine "/path/application"
