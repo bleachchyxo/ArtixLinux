@@ -158,3 +158,46 @@ done
 
 printf '%s\n' "$host" > /etc/hostname
 exec hostname -F /etc/hostname
+
+another other attempt;
+
+#!/bin/sh
+
+WORDS=/usr/share/dict/words
+
+host=$(
+    awk '
+        /^[A-Za-z]+$/ {
+            len = length($0)
+
+            if (len >= 4 && len <= 12)
+                print tolower($0)
+        }
+    ' "$WORDS" | shuf -n1
+)
+
+[ -n "$host" ] || exit 1
+
+printf '%s\n' "$host" > /etc/hostname
+exec hostname -F /etc/hostname
+
+idek anymore;
+
+#!/bin/sh
+set -eu
+
+host=$(
+    awk '
+        /^[A-Za-z]+$/ {
+            len = length($0)
+            if (len >= 4 && len <= 12)
+                print tolower($0)
+        }
+    ' /usr/share/dict/words |
+    shuf -n1
+)
+
+hostname "$host"
+printf '%s\n' "$host" > /etc/hostname
+
+
