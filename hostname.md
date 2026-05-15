@@ -90,3 +90,26 @@ another attempt;
 
     hostname "$host"
     printf '%s\n' "$host" > /etc/hostname
+
+another attempt;
+
+    #!/bin/sh
+
+    WORDS=/usr/share/dict/words
+
+    while :; do
+        host=$(
+            shuf -n1 "$WORDS" |
+            tr '[:upper:]' '[:lower:]' |
+            tr -cd 'a-z0-9'
+        )
+
+        len=${#host}
+
+        [ "$len" -ge 4 ] &&
+        [ "$len" -le 12 ] &&
+        break
+    done
+
+    printf '%s\n' "$host" > /etc/hostname
+    exec hostname -F /etc/hostname
