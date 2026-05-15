@@ -113,3 +113,48 @@ another attempt;
 
     printf '%s\n' "$host" > /etc/hostname
     exec hostname -F /etc/hostname
+
+lol
+
+#!/bin/sh
+
+WORDS=/usr/share/dict/words
+
+while :; do
+    host=$(
+        shuf -n1 "$WORDS" |
+        tr '[:upper:]' '[:lower:]' |
+        tr -cd 'a-z0-9'
+    )
+
+    len=${#host}
+
+    [ "$len" -ge 4 ] &&
+    [ "$len" -le 12 ] &&
+    break
+done
+
+printf '%s\n' "$host" > /etc/hostname
+exec hostname -F /etc/hostname
+
+kek
+
+#!/bin/sh
+
+WORDS=/usr/share/dict/words
+
+while :; do
+    host=$(
+        awk '
+            /^[A-Za-z]{4,12}$/ {
+                print tolower($0)
+            }
+        ' "$WORDS" |
+        shuf -n1
+    )
+
+    [ -n "$host" ] && break
+done
+
+printf '%s\n' "$host" > /etc/hostname
+exec hostname -F /etc/hostname
