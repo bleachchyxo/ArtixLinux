@@ -196,3 +196,13 @@ then regenerate the conf;
     grub-mkconfig -o /boot/grub/grub.cfg
 
     
+# check
+
+[device]
+wifi.scan-rand-mac-address=yes
+
+[connection]
+wifi.cloned-mac-address=stable
+wifi.generate-mac-address-mask=FE:FF:FF:00:00:00
+
+ethernet.cloned-mac-address=stable
