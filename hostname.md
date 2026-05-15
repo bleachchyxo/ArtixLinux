@@ -54,3 +54,39 @@ other attempt;
 
     hostname "$host"
     echo "$host" > /etc/hostname
+
+another attempt;
+
+    #!/bin/sh
+
+    WORDS=/usr/share/dict/words
+
+    IFACE=$(ip route show default 2>/dev/null |
+        awk '/default/ {print $5; exit}')
+
+    [ -n "$IFACE" ] || exit 1
+
+    MAC=$(cat "/sys/class/net/$IFACE/address" 2>/dev/null)
+    [ -n "$MAC" ] || exit 1
+
+    seed=$(printf '%s' "$MAC" | cksum | awk '{print $1}')
+
+    host=$(
+        awk -v seed="$seed" '
+            /^[A-Za-z]+$/ {
+                len=length($0)
+                if (len >= 4 && len <= 12)
+                    words[++n]=$0
+            }
+            END {
+                if (n > 0)
+                    print words[(seed % n) + 1]
+            }
+        ' "$WORDS" |
+        tr '[:upper:]' '[:lower:]'
+        )
+
+    [ -n "$host" ] || host="node$seed"
+
+    hostname "$host"
+    printf '%s\n' "$host" > /etc/hostname
