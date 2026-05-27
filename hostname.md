@@ -41,3 +41,15 @@ test;
 
     # Start NetworkManager
     exec NetworkManager -n >/dev/null 2>&1
+
+also;
+
+`/etc/NetworkManager/conf.d/10-hostname.conf`
+
+    [main]
+    hostname-mode=none
+    dhcp=internal
+
+    [connection]
+    ipv4.dhcp-send-hostname=true
+    ipv6.dhcp-send-hostname=true
