@@ -39,3 +39,12 @@ and check
     which llama-server
 
 ### model
+
+    llama-server \
+      -m models/Dolphin3.0-Llama3.1-8B-Q4_K_M.gguf \
+      -ngl 999 \
+      -c 8192 \
+      --host 127.0.0.1 \
+      --port 8080 \
+      --jinja \
+      --tools all
