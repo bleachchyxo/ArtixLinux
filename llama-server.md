@@ -19,3 +19,5 @@ Build the repo
     cmake -B build \
       -DGGML_CUDA=ON \
       -DCMAKE_BUILD_TYPE=Release
+
+    cmake --build build --config Release -t llama-server
