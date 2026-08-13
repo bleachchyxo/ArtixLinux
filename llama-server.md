@@ -203,3 +203,8 @@ and paste
 
     print(answer)
     PY
+
+make it executable
+
+    chmod +x ~/.local/bin/ai
+
