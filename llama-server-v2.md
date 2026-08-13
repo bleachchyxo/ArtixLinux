@@ -252,6 +252,10 @@ make executable
 
 test
 
+    ai "hello"
+
+lol
+
 ```python
 #!/usr/bin/env python3
 import json, os, re, subprocess, sys, urllib.request
