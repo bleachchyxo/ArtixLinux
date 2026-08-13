@@ -245,3 +245,7 @@ paste
     if __name__ == "__main__":
         main()
 
+
+make executable
+
+    chmod +x ~/.local/bin/ai
