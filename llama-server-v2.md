@@ -19,3 +19,24 @@ Build only the server
 then;
 
     ./build/bin/llama-server --version
+
+### Install the command cleanly
+
+    mkdir -p ~/.local/bin
+
+then link
+
+    ln -sf ~/.local/src/llama.cpp/build/bin/llama-server \
+      ~/.local/bin/llama-server
+
+then make sure
+
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+
+and check
+
+    which llama-server
+
+
+
