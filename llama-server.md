@@ -21,3 +21,7 @@ Build the repo
       -DCMAKE_BUILD_TYPE=Release
 
     cmake --build build --config Release -t llama-server
+
+Then check:
+
+    ./build/bin/llama-server --version
