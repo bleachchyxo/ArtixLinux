@@ -25,3 +25,12 @@ Build the repo
 Then check:
 
     ./build/bin/llama-server --version
+
+You should also verify CUDA was actually compiled in:
+
+    ./build/bin/llama-server --help | grep -E 'tools|agent'
+
+You should see;
+
+    --tools TOOL1,TOOL2,...
+    --agent
