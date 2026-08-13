@@ -261,40 +261,37 @@ HIST = os.path.expanduser("~/.local/share/ai/history.json")
 
 SYSTEM = """You are a Linux computer agent.
 
-You have ONE tool: exec.
+If the user asks you to perform an action, USE THE TOOL. Do not explain how.
 
-If the user asks you to DO, CREATE, CHANGE, RUN, DELETE, INSTALL,
-WRITE, MOVE, COPY, EDIT, CHECK, or otherwise perform an action,
-you MUST use the tool.
-
-NEVER explain how to do the action instead of doing it.
-
-Tool syntax MUST be exactly:
+Tool format:
 TOOL: exec
 COMMAND: <one single-line shell command>
 
-The COMMAND must be one line.
-Do not use markdown.
-Do not write anything before TOOL.
-Do not write anything after COMMAND.
-
-After execution, inspect the result and continue if necessary.
-Never claim something happened unless the tool result proves it.
-Never invent output.
-Never use sudo.
-
-If the user only asks a question, answer normally.
-Be concise."""
+Rules:
+- COMMAND is exactly one line.
+- Never use sudo.
+- Never claim success without execution results.
+- For shell scripts ALWAYS create valid scripts.
+- When writing a script, ALWAYS use:
+  printf '%s\\n' '#!/bin/bash' 'command' > file.sh
+- NEVER use echo with \\n to create files.
+- NEVER put literal \\n inside a script unless explicitly requested.
+- Use && when multiple commands must succeed.
+- After execution, inspect the result.
+- If it failed, fix it.
+- Be concise."""
 
 def load():
     try:
-        with open(HIST) as f: return json.load(f)
+        with open(HIST) as f:
+            return json.load(f)
     except:
-        return [{"role":"system","content":SYSTEM}]
+        return [{"role": "system", "content": SYSTEM}]
 
 def save(m):
     os.makedirs(os.path.dirname(HIST), exist_ok=True)
-    with open(HIST, "w") as f: json.dump(m[-60:], f, ensure_ascii=False)
+    with open(HIST, "w") as f:
+        json.dump(m[-50:], f, ensure_ascii=False)
 
 def ask(m):
     data = json.dumps({
@@ -302,86 +299,119 @@ def ask(m):
         "stream": False,
         "temperature": 0.1
     }).encode()
+
     r = urllib.request.Request(
         API, data=data,
-        headers={"Content-Type":"application/json"}
+        headers={"Content-Type": "application/json"}
     )
+
     with urllib.request.urlopen(r, timeout=300) as x:
         return json.load(x)["choices"][0]["message"]["content"]
 
-def run(cmd):
-    p = subprocess.run(cmd, shell=True, text=True, capture_output=True)
-    return p.returncode, (p.stdout + p.stderr).strip() or "(no output)"
+def command(text):
+    m = re.search(
+        r"(?im)^TOOL:\s*exec\s*\nCOMMAND:\s*(.+)$",
+        text
+    )
+    if not m:
+        return None
 
-def tool(a):
-    x = re.search(r"(?im)^TOOL:\s*exec\s*\nCOMMAND:\s*(\S.*)$", a)
-    return x.group(1).splitlines()[0].strip() if x else None
+    c = m.group(1).splitlines()[0].strip()
+
+    # Fix the common model mistake: literal "\n" inside shell strings.
+    c = c.replace(r"\n", "\n")
+
+    return c
+
+def run(c):
+    p = subprocess.run(
+        c,
+        shell=True,
+        text=True,
+        capture_output=True
+    )
+    out = (p.stdout + p.stderr).strip()
+    return p.returncode, out or "(no output)"
+
+def dangerous(c):
+    return re.search(
+        r"\b(rm|rmdir|mv|dd|mkfs|sudo|systemctl|kill|pkill|reboot|shutdown)\b",
+        c,
+        re.I
+    )
 
 def main():
-    if not sys.argv[1:]:
+    args = sys.argv[1:]
+
+    if not args:
         print('usage: ai "request"')
         return
 
-    if sys.argv[1] == "--clear":
-        try: os.remove(HIST)
-        except FileNotFoundError: pass
+    if args[0] == "--clear":
+        try:
+            os.remove(HIST)
+        except FileNotFoundError:
+            pass
         print("cleared")
         return
 
-    if sys.argv[1] == "--history":
+    if args[0] == "--history":
         print(json.dumps(load(), indent=2))
         return
 
     m = load()
-    m.append({"role":"user","content":" ".join(sys.argv[1:])})
+    m.append({"role": "user", "content": " ".join(args)})
 
-    for _ in range(8):
+    previous = None
+
+    for _ in range(6):
         a = ask(m)
-        cmd = tool(a)
+        c = command(a)
 
-        if not cmd:
-            # Force the model back into tool mode.
-            m.append({"role":"assistant","content":a})
+        if not c:
+            m += [
+                {"role": "assistant", "content": a},
+                {"role": "user", "content":
+                 "Execute the request now. Reply ONLY with:\n"
+                 "TOOL: exec\n"
+                 "COMMAND: <one single-line shell command>"}
+            ]
+            continue
+
+        if c == previous:
             m.append({
-                "role":"user",
+                "role": "user",
                 "content":
-                "ACTION REQUIRED. Do not explain. Do not give instructions. "
-                "Execute the requested action now. Reply ONLY with:\n"
-                "TOOL: exec\n"
-                "COMMAND: <one single-line shell command>"
+                "That exact command already failed. Do not repeat it. "
+                "Generate a different correct command."
             })
-            a = ask(m)
-            cmd = tool(a)
+            continue
 
-        if not cmd:
-            print(a)
-            m.append({"role":"assistant","content":a})
-            save(m)
-            return
+        previous = c
+        print(f"$ {c}")
 
-        print(f"$ {cmd}")
-
-        if re.search(
-            r"\b(rm|rmdir|mv|chmod|chown|dd|mkfs|sudo|systemctl|"
-            r"kill|pkill|reboot|shutdown)\b", cmd
-        ):
+        if dangerous(c):
             if input("Execute? [y/N] ").strip().lower() != "y":
-                m += [
-                    {"role":"assistant","content":a},
-                    {"role":"user","content":"Command cancelled. Do not claim it ran."}
-                ]
+                m.append({
+                    "role": "user",
+                    "content": "Command cancelled. Generate another approach."
+                })
                 continue
 
-        code, out = run(cmd)
+        code, out = run(c)
         print(out)
 
         m += [
-            {"role":"assistant","content":a},
-            {"role":"user","content":f"Tool result:\nexit_code={code}\n{out}"}
+            {"role": "assistant", "content": a},
+            {"role": "user", "content":
+             f"Tool result:\nexit_code={code}\n{out}"}
         ]
 
-    print("maximum tool steps reached")
+        if code == 0:
+            continue
+
     save(m)
+    print("maximum tool steps reached")
 
 if __name__ == "__main__":
     main()
