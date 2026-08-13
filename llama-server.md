@@ -54,3 +54,26 @@ then
 you can test it on your browser
 
     http://127.0.0.1:8080
+
+## chatbot
+
+    mkdir -p ~/.local/bin
+
+    ln -sf ~/.config/llama.cpp/build/bin/llama-server ~/.local/bin/llama-server
+
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
+    source ~/.bashrc
+
+check
+
+    which llama-server
+
+should output
+
+    /home/$USER/.local/bin/llama-server
+
+or check
+
+    llama-server --version
+
