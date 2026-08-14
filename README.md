@@ -3,7 +3,7 @@ Artix Linux
 
 A minimal Artix Linux setup built around runit, dwm, st, and dmenu.
 
-DarkArtix is a collection of scripts and configuration files for installing
+A collection of scripts and configuration files for installing
 and setting up my preferred Artix Linux environment. It uses runit instead
 of systemd and a minimal suckless-based graphical environment.
 
@@ -39,7 +39,7 @@ WARNING: install.sh will erase the selected disk.
 2. Clone the repository:
 
    git clone [https://github.com/bleachchyxo/DarkArtix.git](https://github.com/bleachchyxo/ArtixLinux.git)
-   cd DarkArtix
+   cd ArtixLinux
 
 3. Run the installer:
 
@@ -69,7 +69,7 @@ After the environment setup is complete, reboot or run:
 Architecture
 ------------
 
-DarkArtix is split into two stages:
+ArtixLinux is split into two stages:
 
     Artix ISO
         |
@@ -86,7 +86,7 @@ DarkArtix is split into two stages:
     Xorg + dwm + st + dmenu
         |
         v
-    DarkArtix desktop
+    Artix desktop
 
 Repository Structure
 --------------------
