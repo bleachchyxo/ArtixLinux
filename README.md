@@ -38,7 +38,7 @@ WARNING: install.sh will erase the selected disk.
 
 2. Clone the repository:
 
-   git clone https://github.com/bleachchyxo/DarkArtix.git
+   git clone [https://github.com/bleachchyxo/DarkArtix.git](https://github.com/bleachchyxo/ArtixLinux.git)
    cd DarkArtix
 
 3. Run the installer:
