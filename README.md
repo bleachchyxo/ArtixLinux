@@ -1,4 +1,4 @@
-DarkArtix
+Artix Linux
 =========
 
 A minimal Artix Linux setup built around runit, dwm, st, and dmenu.
